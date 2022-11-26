@@ -13,6 +13,8 @@ from nanoguilib.label import Label
 from nanoguilib.dial import Dial, Pointer
 refresh(ssd, True)  # Initialise and clear display.
 
+import touchscreen
+
 # Now import other modules
 import ujson
 import cmath
@@ -25,6 +27,7 @@ import uasyncio as asyncio
 import network
 import socket
 import machine
+from machine import Pin, SPI, PWM
 import gc
 
 # Font for CWriter
@@ -32,12 +35,10 @@ import nanoguilib.freesans20 as freesans20
 import nanoguilib.arial10 as arial10
 from nanoguilib.colors import *
 
-ssid = "##"
-pwd = "##"
+ssid = "#########"
+pwd = "#########"
 
-request_url = f"https://api.openweathermap.org//data/2.5/weather?lat=##&lon=##&appid=##"
-
-#display_temp = Label()
+request_url = f"https://api.openweathermap.org//data/2.5/weather?lat=#########&lon=#########&appid=#########&lang=DE"
 
 def connect():
     wlan = network.WLAN(network.STA_IF)
@@ -47,7 +48,6 @@ def connect():
     while tries >0:
         tries -=1
         wlan.connect(ssid, pwd)
- #       utime.sleep(1)
         stat = wlan.status()
         while stat == network.STAT_CONNECTING:
             log.value('Verbinde .  ')
@@ -72,12 +72,12 @@ def connect():
         if stat == network.STAT_NO_AP_FOUND:
             print( 'NO_AP_FOUND')
         else:
-            log.value(f'status={stat}')
+            log.value(f'Status = {stat}')
             refresh(ssd)
 #            print(stat)
         log.value("")
     
-def aclock():
+def clock():
     gc.collect()
     
     uv = lambda phi : cmath.rect(1, phi)  # Return a unit vector of phase phi
@@ -88,11 +88,12 @@ def aclock():
               'Aug', 'Sept', 'Okt', 'Nov', 'Dez')
 
     # Instantiate displayable objects
-    weather_display = Label(wri2, 5, 5, 10)
-    temp_display = Label(wri, 30, 5, 10)
+    weather_display = Label(wri, 5, 5, 10)
+    temp_display = Label(wri, 50, 5, 10)
     dial = Dial(wri, 80, 28, height = 180, ticks = 12, bdcolor=BLACK, label=120, pip=False)  # Border in fg color
     cal = Label(wri, 298, 10, 10)
     lbltim = Label(wri, 270, 60, 35)
+    x_y = Label(wri, 50, 5, 35)
     hrs = Pointer(dial)
     mins = Pointer(dial)
     secs = Pointer(dial)
@@ -103,67 +104,60 @@ def aclock():
     
     ntptime.settime()
     
-    weather_decsription_display = ""
-    weather_temp_display = ""
-    
-    seconds = 10
+    seconds = 0
     timeoffset = 0
     
+    LCD = touchscreen.touch()
+    
     while True:
+        get = LCD.touch_get()
+        if get != None:
+            Y_touch = int((get[1]-430)*320/3270)
+            X_touch = 240-int((get[0]-430)*240/3270)
+            if X_touch < 0:
+                X_touch = 0
+            if Y_touch < 0:
+                Y_touch = 0
+            if X_touch > 240:
+                X_touch = 240
+            if Y_touch > 320:
+                Y_touch = 320
+#            print(f"X: {X_touch}, Y: {Y_touch}")
+            x_y.value(f"X: {X_touch}, Y: {Y_touch}")
+            refresh(ssd)
+            utime.sleep_ms(100)
+            
+            ssd.rect(5, 50, 140, 80, BLACK, True)
+            x_y.value(f"X: {X_touch}, Y: {Y_touch}")
+        else:
+            ssd.rect(5, 50, 140, 80, BLACK, True)
+            utime.sleep_ms(100)
+            
         if seconds == 0:
             url = request_url
             _, _, host, path = url.split('/', 3)
             addr = socket.getaddrinfo(host, 80)[0][-1]
             s = socket.socket()
             s.connect(addr)
-            s.send(b'GET /%s HTTP/1.0\r\nHost: %s\r\n\r\n' % (path, host))
+            s.send(b'GET /%s HTTP/1.0\r\n\r\n' % (path))
             while True:
-                data = s.read(1500)
+                data = s.read()
                 if data:
                     data_new = str(data, 'utf8')
-                    i = 300
-                    while data_new[i] != "{":
-                        i += 1
-                    data = data_new[i:]
-                    response = ujson.loads(data)  
-                    weather_data = response
+                    _, data = data_new.split("{", 1)
+                    data = ujson.loads("{" + data)  
     
+                    timeoffset = int(data["timezone"]) // 3600
 
-                    timeoffset = response["timezone"]
-                    timeoffset = int(timeoffset / 3600)
-
-                    weather_description = weather_data["weather"][0]["description"]
-                    if weather_description == "broken clouds":
-                        weather_description = "leicht bewoelkt"
-                    if weather_description == "light rain":
-                        weather_description = "leicht regnerisch"
-                    if weather_description == "rain":
-                        weather_description = "regnerisch"
-                    if weather_description == "modeate rain":
-                        weather_description = "maessig regnerisch"
-                    if weather_description == "scattered clouds":
-                        weather_description = "aufgelockert bewoelkt"
-                    if weather_description == "overcast clouds":
-                        weather_description = "bedeckt bewoelkt"
-                    if weather_description == "snow":
-                        weather_description = "Schnee"
-                        weather_description_display = f"Es schneit."
-                    if weather_description == "few clouds":
-                        weather_description = "etwas bewoelkt"
-                    if weather_description == "clear sky":
-                        weather_description = "klarer Himmel"
-
-                    weather_temp = round(weather_data["main"]["temp"] - 273.15, 1)
+                    weather_description = data["weather"][0]["description"]
+                    weather_temp = round(data["main"]["temp"] - 273.15, 1)
                     
-                    weather_description_display = ""
-                    weather_temp_display = ""
-                    
-                    weather_decsription_display = f"Es ist {weather_description}."
+                    weather_decsription_display = f"Wetter:\n {weather_description}."
                     weather_temp_display = f"Temp: {weather_temp} Grad C."
                 else:
                     break
             s.close()
-            seconds = 6000
+            seconds = 1200
         
         t = utime.localtime()
         hrs.value(hstart * uv(-(t[3]+timeoffset)*pi/6 - t[4]*pi/360), WHITE)
@@ -172,11 +166,10 @@ def aclock():
         ssd.rect(0, 0, 200, 50, BLACK, True)
         weather_display.value(f"{weather_decsription_display}", BLACK, WHITE)
         temp_display.value(f"{weather_temp_display}", BLACK, WHITE)
-        lbltim.value(f'{t[3]+timeoffset:02d}:{t[4]:02d}:{t[5]:02d} UHR', BLACK, WHITE)
+        lbltim.value(f'{(t[3]+timeoffset) % 24:02d}:{t[4]:02d}:{t[5]:02d} UHR', BLACK, WHITE)
         cal.value(f'{days[t[6]]} {t[2]}. {months[t[1] - 1]} {t[0]}', BLACK, WHITE)
         refresh(ssd)
         seconds -= 1
-        utime.sleep_ms(10)
       
 # Instantiate CWriter
 CWriter.set_textpos(ssd, 0, 0)  # In case previous tests have altered it
@@ -187,4 +180,4 @@ wri2 = CWriter(ssd, arial10, GREY, BLACK)
 wri2.set_clip(True, True, False)
 
 connect()
-aclock()
+clock()
