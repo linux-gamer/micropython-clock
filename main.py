@@ -17,6 +17,7 @@ import touchscreen
 
 # Now import other modules
 import ujson
+import secrets
 import cmath
 import ntptime
 import network
@@ -35,10 +36,14 @@ import nanoguilib.freesans20 as freesans20
 import nanoguilib.arial10 as arial10
 from nanoguilib.colors import *
 
-ssid = "#########"
-pwd = "#########"
+ssid = secrets.wlan_ssid
+pwd = secrets.wlan_pwd
 
-request_url = f"https://api.openweathermap.org//data/2.5/weather?lat=#########&lon=#########&appid=#########&lang=DE"
+lat = secrets.lat
+lon = secrets.lon
+
+appid = secrets.openweathermap_api_key
+request_url = f"https://api.openweathermap.org//data/2.5/weather?lat={lat}&lon={lon}&appid={appid}&lang=DE"
 
 def connect():
     wlan = network.WLAN(network.STA_IF)
