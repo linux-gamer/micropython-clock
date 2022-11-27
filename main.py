@@ -87,10 +87,8 @@ def clock():
     
     uv = lambda phi : cmath.rect(1, phi)  # Return a unit vector of phase phi
     pi = cmath.pi
-    days = (' Montag', 'Dienstag', ' Mittwoch', 'Donnerstag', ' Freitag', ' Samstag',
-            ' Sonntag')
-    months = ('Jan', 'Feb', 'Maerz', 'April', 'Mai', 'Juni', 'Juli',
-              'Aug', 'Sept', 'Okt', 'Nov', 'Dez')
+    days = (' Montag', 'Dienstag', ' Mittwoch', 'Donnerstag', ' Freitag', ' Samstag', ' Sonntag')
+    months = ('Jan', 'Feb', 'Maerz', 'April', 'Mai', 'Juni', 'Juli', 'Aug', 'Sept', 'Okt', 'Nov', 'Dez')
 
     # Instantiate displayable objects
     weather_display = Label(wri, 5, 5, 10)
@@ -166,14 +164,16 @@ def clock():
         
         t = utime.localtime()
         
-        monatsenden = (31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31)
+        end_of_the_month = (31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31)
         if t[0] % 4 == 0 and t[0] % 100 != 0:
-            monatsenden = (31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31)
+            monatsenden = (31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31)
         
+        month = months[t[1] - 1]
         date = t[2]
         if (t[3] + timeoffset) % 24 == 0 and 0 > timeoffset < 0:
             date = t[2] + 1
-            if t[2] + 1 > monatsenden[t[1] - 1]:
+            if t[2] + 1 > end_of_the_month[t[1] - 1]:
+                month = months[t[1]] # Don't use + 1 because arrays begin with zero.
                 date = 1
         
         hrs.value(hstart * uv(-(t[3]+timeoffset)*pi/6 - t[4]*pi/360), WHITE)
@@ -183,7 +183,7 @@ def clock():
         weather_display.value(f"{weather_decsription_display}", BLACK, WHITE)
         temp_display.value(f"{weather_temp_display}", BLACK, WHITE)
         lbltim.value(f'{(t[3] + timeoffset) % 24:02d}:{t[4]:02d}:{t[5]:02d} UHR', BLACK, WHITE)
-        cal.value(f'{days[t[6]]} {date}. {months[t[1] - 1]} {t[0]}', BLACK, WHITE)
+        cal.value(f'{days[t[6]]} {date}. {month} {t[0]}', BLACK, WHITE)
         refresh(ssd)
         seconds -= 1
       
