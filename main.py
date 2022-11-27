@@ -165,14 +165,25 @@ def clock():
             seconds = 1200
         
         t = utime.localtime()
+        
+        monatsenden = (31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31)
+        if t[0] % 4 == 0 and t[0] % 100 != 0:
+            monatsenden = (31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31)
+        
+        date = t[2]
+        if (t[3] + timeoffset) % 24 == 0 and 0 > timeoffset < 0:
+            date = t[2] + 1
+            if t[2] + 1 > monatsenden[t[1] - 1]:
+                date = 1
+        
         hrs.value(hstart * uv(-(t[3]+timeoffset)*pi/6 - t[4]*pi/360), WHITE)
         mins.value(mstart * uv(-t[4] * pi/30), WHITE)
         secs.value(sstart * uv(-t[5] * pi/30), RED)
         ssd.rect(0, 0, 200, 50, BLACK, True)
         weather_display.value(f"{weather_decsription_display}", BLACK, WHITE)
         temp_display.value(f"{weather_temp_display}", BLACK, WHITE)
-        lbltim.value(f'{(t[3]+timeoffset) % 24:02d}:{t[4]:02d}:{t[5]:02d} UHR', BLACK, WHITE)
-        cal.value(f'{days[t[6]]} {t[2]}. {months[t[1] - 1]} {t[0]}', BLACK, WHITE)
+        lbltim.value(f'{(t[3] + timeoffset) % 24:02d}:{t[4]:02d}:{t[5]:02d} UHR', BLACK, WHITE)
+        cal.value(f'{days[t[6]]} {date}. {months[t[1] - 1]} {t[0]}', BLACK, WHITE)
         refresh(ssd)
         seconds -= 1
       
