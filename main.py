@@ -1,7 +1,4 @@
-# aclock.py Test/demo program for nanogui
-# Orinally for ssd1351-based OLED displays but runs on most displays
-# Adafruit 1.5" 128*128 OLED display: https://www.adafruit.com/product/1431
-# Adafruit 1.27" 128*96 display https://www.adafruit.com/product/1673
+# Version 2022 Q4
 
 # Released under the MIT License (MIT). See LICENSE.
 # Copyright (c) 2018-2020 Peter Hinch
@@ -170,24 +167,25 @@ def clock():
         
         date = t[2]
         day = days[t[6] % 7]
-        month = months[t[1] - 1 % 7]
+        month = months[t[1] - 1]
         year = t[0]
-        if (t[3] + timeoffset) >= 24 and timeoffset > 0:
-            date = t[2] + 1
-            day = days[t[6] + 1 % 7]
-            if date >= end_of_the_month[t[1] - 1] and t[3] + timeoffset >= 24 and timeoffset > 0:
+        
+        if (t[3] + timeoffset) >= 24:
+            date = date + 1
+            day = days[(t[6] + 1) % 7]
+            if date >= end_of_the_month[t[1] - 1]:
                 month = months[t[1]] # Don't use + 1 because arrays (tuples) begin with zero.
                 date = 1
-                if t[1] == 12 and t[2] >= end_of_the_month[t[2] - 1] and t[3] + timeoffset >= 24:
+                if t[1] == 12:
                     year = t[0] + 1
                 
-        if (t[3] + timeoffset) < 0 and timeoffset < 0:
-            date = t[2] - 1
-            day = days[t[6] - 1 % 7]
-            if date <= 0 and (t[3] + timeoffset) % 24 == 0 and timeoffset < 0:
+        if (t[3] + timeoffset) < 0:
+            date = date - 1
+            day = days[(t[6] - 1) % 7]
+            if date <= 0:
                 month = months[t[1] - 1]
-                date = 1
-                if t[1] == 12 and t[2] >= end_of_the_month[t[2] - 1] and t[3] + timeoffset >= 24:
+                date = end_of_the_month[t[1] - 1]
+                if t[1] == 1:
                     year = t[0] - 1
         
         hrs.value(hstart * uv(-(t[3]+timeoffset)*pi/6 - t[4]*pi/360), WHITE)
