@@ -25,7 +25,7 @@ import uasyncio as asyncio
 import network
 import socket
 import machine
-from machine import Pin, SPI, PWM
+from machine import Pin, SPI, PWM, ADC
 import gc
 
 # Font for CWriter
@@ -41,6 +41,18 @@ lon = secrets.lon
 
 appid = secrets.openweathermap_api_key
 request_url = f"https://api.openweathermap.org//data/2.5/weather?lat={lat}&lon={lon}&appid={appid}&lang=DE"
+
+# Get the temperature from the internal RP2040 temperature sensor.
+sensor_temp = machine.ADC(4)
+# See Raspberry Pi Pico datasheet for the conversion factor.
+temp_converion_factor = 3.3 / (65535)
+
+def get_temp():
+    # Get a temperature reading.
+    reading = sensor_temp.read_u16() * temp_converion_factor
+    # Convert the temperature into degrees celsius.
+    temperature = 27 - (reading - 0.706)/0.001721
+    return temperature
 
 def connect():
     wlan = network.WLAN(network.STA_IF)
@@ -68,13 +80,14 @@ def connect():
             log.value("Verbunden!", BLACK, WHITE)
             refresh(ssd)
             status = wlan.ifconfig()
-            print( f"Ip = {status[0]}")
+            print( f"ip = {status[0]}")
         if stat == network.STAT_WRONG_PASSWORD:
             print( 'wrong password')
         if stat == network.STAT_NO_AP_FOUND:
             print( 'NO_AP_FOUND')
         else:
-            log.value(f'Status = {stat}')
+            if stat != 3:
+                log.value(f'Status = {stat}')
             refresh(ssd)
 #            print(stat)
         log.value("")
@@ -108,6 +121,8 @@ def clock():
     timeoffset = 0
     
     LCD = touchscreen.touch()
+    
+    weather_temp_display = f"Temp: {get_temp()} Grad C."
     
     while True:
         get = LCD.touch_get()
@@ -165,28 +180,31 @@ def clock():
         if t[0] % 4 == 0 and t[0] % 100 != 0:
             end_of_the_month = (31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31)
         
-        date = t[2]
-        day = days[t[6] % 7]
-        month = months[t[1] - 1]
+        time = t[3] + timeoffset
+        dateoffset = time // 24
+        time %= 24
+        date = t[2] + dateoffset
+        month = t[1]
         year = t[0]
+        day = days[(t[6] + dateoffset) % 7]
         
-        if (t[3] + timeoffset) >= 24:
-            date = date + 1
-            day = days[(t[6] + 1) % 7]
-            if date >= end_of_the_month[t[1] - 1]:
-                month = months[t[1]] # Don't use + 1 because arrays (tuples) begin with zero.
-                date = 1
-                if t[1] == 12:
-                    year = t[0] + 1
-                
-        if (t[3] + timeoffset) < 0:
-            date = date - 1
-            day = days[(t[6] - 1) % 7]
-            if date <= 0:
-                month = months[t[1] - 1]
-                date = end_of_the_month[t[1] - 1]
-                if t[1] == 1:
-                    year = t[0] - 1
+        end_of_the_month = (31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31)
+        if year % 4 == 0 and year % 100 != 0: # leap year
+            end_of_the_month = (31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31)
+        
+        if date == 0:
+            month -= 1
+            date = end_of_the_month[month - 1]
+            if month == 0:
+                year -= 1
+                month = 12
+        
+        if date > end_of_the_month[month - 1]:
+            month += 1
+            date = 1
+            if month > 12:
+                year += 1
+                month = 1
         
         hrs.value(hstart * uv(-(t[3]+timeoffset)*pi/6 - t[4]*pi/360), WHITE)
         mins.value(mstart * uv(-t[4] * pi/30), WHITE)
